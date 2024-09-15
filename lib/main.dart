@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';  
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'detalles_tarea.dart';
+import 'todo_storage.dart';
+
 
 // Modelo Todo
 class Todo {
@@ -14,10 +17,21 @@ class Todo {
 
 // Notificador TodoNotifier
 class TodoNotifier extends StateNotifier<List<Todo>> {
-  TodoNotifier() : super([]);
+  TodoNotifier() : super([]) {
+    _loadTodos();  // Cargar tareas al inicializar el notificador
+  }
+
+  Future<void> _loadTodos() async {
+    state = await TodoStorage.loadTodos();  // Cargar tareas desde shared_preferences
+  }
+
+  Future<void> _saveTodos() async {
+    await TodoStorage.saveTodos(state);  // Guardar tareas en shared_preferences
+  }
 
   void addTodo(String description) {
     state = [...state, Todo(description: description)];
+    _saveTodos();  // Guardar cambios
   }
 
   void toggleTodoStatus(int index) {
@@ -31,10 +45,12 @@ class TodoNotifier extends StateNotifier<List<Todo>> {
         else
           state[i],
     ];
+    _saveTodos();  // Guardar cambios
   }
 
   void removeTodoAt(int index) {
     state = [...state]..removeAt(index);
+    _saveTodos();  // Guardar cambios
   }
 }
 
@@ -56,7 +72,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Todo App - Flutter',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primarySwatch: Colors.blue
       ),
       home: const TodoScreen(),
     );
@@ -108,9 +124,12 @@ class TodoScreen extends ConsumerWidget {
                   ),
                   title: InkWell(
                     onTap: () {
-                      ref
-                          .read(todoListProvider.notifier)
-                          .toggleTodoStatus(index);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PantallaDeDetalles(todo: todo),
+                        ),
+                      );
                     },
                     child: Text(
                       todo.description,
@@ -122,13 +141,34 @@ class TodoScreen extends ConsumerWidget {
                     ),
                   ),
                   trailing: IconButton(
-                    onPressed: () {
-                      ref
-                          .read(todoListProvider.notifier)
-                          .removeTodoAt(index);
-                    },
-                    icon: const Icon(Icons.delete),
-                  ),
+  onPressed: () {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Confirmar Eliminación"),
+          content: const Text("¿Estás seguro de que deseas eliminar esta tarea?"),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();  // Cerrar el diálogo
+              },
+              child: const Text("Cancelar"),
+            ),
+            TextButton(
+              onPressed: () {
+                ref.read(todoListProvider.notifier).removeTodoAt(index);  // Eliminar tarea
+                Navigator.of(context).pop();  // Cerrar el diálogo
+              },
+              child: const Text("Eliminar"),
+            ),
+                  ],
+                );
+              },
+            );
+          },
+  icon: const Icon(Icons.delete),
+),
                 );
               },
             ),
